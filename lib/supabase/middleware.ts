@@ -1,27 +1,44 @@
-import { createServerClient } from "@supabase/ssr"
+import { createServerClient, type CookieOptions } from "@supabase/ssr"
 import { NextResponse, type NextRequest } from "next/server"
 
 export async function updateSession(request: NextRequest) {
-  let supabaseResponse = NextResponse.next({
-    request,
+  let response = NextResponse.next({
+    request: {
+      headers: request.headers,
+    },
   })
 
   const supabase = createServerClient(
-    process.env.SUPABASE_URL!,
-    process.env.SUPABASE_ANON_KEY!,
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!,
     {
       cookies: {
-        getAll() {
-          return request.cookies.getAll()
+        get(name: string) {
+          return request.cookies.get(name)?.value
         },
-        setAll(cookiesToSet) {
-          cookiesToSet.forEach(({ name, value }) => request.cookies.set(name, value))
-          supabaseResponse = NextResponse.next({
-            request,
+        set(name: string, value: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value,
+            ...options,
           })
-          cookiesToSet.forEach(({ name, value, options }) =>
-            supabaseResponse.cookies.set(name, value, options)
-          )
+          response.cookies.set({
+            name,
+            value,
+            ...options,
+          })
+        },
+        remove(name: string, options: CookieOptions) {
+          request.cookies.set({
+            name,
+            value: "",
+            ...options,
+          })
+          response.cookies.set({
+            name,
+            value: "",
+            ...options,
+          })
         },
       },
     }
@@ -31,13 +48,15 @@ export async function updateSession(request: NextRequest) {
     data: { user },
   } = await supabase.auth.getUser()
 
-  const { pathname } = request.nextUrl
+  console.log("[Middleware] Verificando usuário:", user?.email || "Nenhum usuário logado")
 
   // Rotas de autenticação
   const authRoutes = ["/auth/login", "/auth/setup"]
+  const pathname = request.nextUrl.pathname
 
   // Se o usuário não estiver logado e tentar acessar uma rota protegida
   if (!user && !authRoutes.includes(pathname)) {
+    console.log("[Middleware] DECISÃO: Redirecionando para /auth/login")
     const url = request.nextUrl.clone()
     url.pathname = "/auth/login"
     return NextResponse.redirect(url)
@@ -45,10 +64,12 @@ export async function updateSession(request: NextRequest) {
 
   // Se o usuário estiver logado e tentar acessar uma rota de autenticação
   if (user && authRoutes.includes(pathname)) {
+    console.log("[Middleware] DECISÃO: Usuário já logado, redirecionando para /")
     const url = request.nextUrl.clone()
     url.pathname = "/"
     return NextResponse.redirect(url)
   }
 
-  return supabaseResponse
+  console.log("[Middleware] DECISÃO: Acesso permitido.")
+  return response
 }
