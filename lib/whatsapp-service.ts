@@ -120,16 +120,24 @@ export async function getConversation(phone: string) {
 }
 
 // Atualizar ou criar um candidato no banco de dados
-export async function updateOrCreateCandidate(phone: string, name: string): Promise<void> {
-  const { error } = await supabaseAdmin.from("candidates").upsert(
-    {
-      id: phone,
-      phone: phone,
-      name: name,
-      last_message_at: new Date().toISOString(),
-    },
-    { onConflict: "phone" }
-  )
+export async function updateOrCreateCandidate(
+  phone: string,
+  name: string,
+  text: string
+): Promise<void> {
+  const upsertData: Partial<Candidate> & { phone: string } = {
+    phone: phone,
+    last_message_at: new Date().toISOString(),
+    last_message_preview: text,
+  }
+
+  if (name) {
+    upsertData.name = name
+  }
+
+  const { error } = await supabaseAdmin
+    .from("candidates")
+    .upsert(upsertData, { onConflict: "phone" })
 
   if (error) {
     console.error("[v0] Erro ao fazer upsert do candidato:", error)
