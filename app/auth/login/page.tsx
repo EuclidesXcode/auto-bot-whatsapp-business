@@ -29,7 +29,8 @@ export default function LoginPage() {
         password,
       })
       if (error) throw error
-      window.location.assign("/")
+      router.push("/")
+      router.refresh()
     } catch (error: unknown) {
       if (error instanceof Error) {
         const errorMessage = error.message === "Invalid login credentials" 
