@@ -1,10 +1,11 @@
 import { createBrowserClient } from "@supabase/ssr"
 
-let client: ReturnType<typeof createBrowserClient> | null = null
-
+// NOTE: O padrão singleton foi removido daqui.
+// A biblioteca @supabase/ssr foi projetada para que uma nova instância seja criada
+// quando necessário, evitando problemas de estado de autenticação entre requisições e usuários.
 export function createClient() {
-  if (!client) {
-    client = createBrowserClient(process.env.NEXT_PUBLIC_SUPABASE_URL!, process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!)
-  }
-  return client
+  return createBrowserClient(
+    process.env.NEXT_PUBLIC_SUPABASE_URL!,
+    process.env.NEXT_PUBLIC_SUPABASE_ANON_KEY!
+  )
 }
