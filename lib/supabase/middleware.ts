@@ -19,13 +19,36 @@ export async function updateSession(request: NextRequest) {
           supabaseResponse = NextResponse.next({
             request,
           })
-          cookiesToSet.forEach(({ name, value, options }) => supabaseResponse.cookies.set(name, value, options))
+          cookiesToSet.forEach(({ name, value, options }) =>
+            supabaseResponse.cookies.set(name, value, options)
+          )
         },
       },
-    },
+    }
   )
 
-  await supabase.auth.getUser()
+  const {
+    data: { user },
+  } = await supabase.auth.getUser()
+
+  const { pathname } = request.nextUrl
+
+  // Rotas de autenticação
+  const authRoutes = ["/auth/login", "/auth/setup"]
+
+  // Se o usuário não estiver logado e tentar acessar uma rota protegida
+  if (!user && !authRoutes.includes(pathname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/auth/login"
+    return NextResponse.redirect(url)
+  }
+
+  // Se o usuário estiver logado e tentar acessar uma rota de autenticação
+  if (user && authRoutes.includes(pathname)) {
+    const url = request.nextUrl.clone()
+    url.pathname = "/"
+    return NextResponse.redirect(url)
+  }
 
   return supabaseResponse
 }
