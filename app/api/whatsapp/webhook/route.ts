@@ -3,6 +3,7 @@ import {
   updateOrCreateCandidate,
   addMessageToConversation,
   sendWhatsAppMessage,
+  getCandidate,
 } from "@/lib/whatsapp-service"
 import { processMessageWithAI } from "@/lib/ai-service"
 
@@ -30,48 +31,54 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-
     console.log("[v0] Webhook recebido:", JSON.stringify(body, null, 2))
 
     // Verificar se há mensagens
     if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
       const message = body.entry[0].changes[0].value.messages[0]
       const contact = body.entry[0].changes[0].value.contacts[0]
-
       const phone = message.from
+
+      // VERIFICAÇÃO: O bot deve responder a este candidato?
+      const candidate = await getCandidate(phone)
+      if (candidate?.bot_status === "inactive") {
+        console.log(`[Webhook] Bot inativo para ${phone}. Ignorando mensagem.`)
+        return NextResponse.json({ success: true, message: "Bot inativo para este usuário" })
+      }
+
       const text = message.text?.body || ""
       const name = contact?.profile?.name || "Candidato"
       const messageId = message.id
       const timestamp = new Date(Number.parseInt(message.timestamp) * 1000).toISOString()
 
-      console.log("[Webhook] Nova mensagem recebida:", { phone, text, name });
+      console.log("[Webhook] Nova mensagem recebida:", { phone, text, name })
 
       // Salvar mensagem do candidato
-      console.log("[Webhook] Passo 1: Salvando mensagem do candidato...");
+      console.log("[Webhook] Passo 1: Salvando mensagem do candidato...")
       await addMessageToConversation(phone, {
         id: messageId,
         sender: "candidate",
         text,
         timestamp,
       })
-      console.log("[Webhook] Passo 1 concluído.");
+      console.log("[Webhook] Passo 1 concluído.")
 
       // Atualizar ou criar candidato
-      console.log("[Webhook] Passo 2: Atualizando/criando candidato...");
+      console.log("[Webhook] Passo 2: Atualizando/criando candidato...")
       await updateOrCreateCandidate(phone, name)
-      console.log("[Webhook] Passo 2 concluído.");
+      console.log("[Webhook] Passo 2 concluído.")
 
       // Processar mensagem com IA e responder
-      console.log("[Webhook] Passo 3: Processando com IA...");
+      console.log("[Webhook] Passo 3: Processando com IA...")
       const aiResponse = await processMessageWithAI(phone, text, name)
-      console.log("[Webhook] Passo 3 concluído.");
+      console.log("[Webhook] Passo 3 concluído.")
 
       if (aiResponse) {
-        console.log("[Webhook] Passo 4: Enviando resposta da IA...");
+        console.log("[Webhook] Passo 4: Enviando resposta da IA...")
         await sendWhatsAppMessage(phone, aiResponse)
-        console.log("[Webhook] Passo 4 concluído.");
+        console.log("[Webhook] Passo 4 concluído.")
       } else {
-        console.log("[Webhook] Nenhuma resposta gerada pela IA.");
+        console.log("[Webhook] Nenhuma resposta gerada pela IA.")
       }
 
       return NextResponse.json({ success: true })

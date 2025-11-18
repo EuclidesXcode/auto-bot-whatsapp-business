@@ -1,12 +1,11 @@
-"use client"
-
 import { useState, useEffect, useRef } from "react"
 import { Button } from "@/components/ui/button"
 import { Input } from "@/components/ui/input"
-import { Send, Bot, User } from 'lucide-react'
+import { Send, Bot, User } from "lucide-react"
 import type { Conversation } from "@/lib/types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
 import { useToast } from "@/hooks/use-toast"
+import ReactMarkdown from "react-markdown"
 
 interface ConversationViewProps {
   conversations: Conversation[]
@@ -14,7 +13,11 @@ interface ConversationViewProps {
   onSelectConversation: (conversation: Conversation) => void
 }
 
-export function ConversationView({ conversations, selectedConversation, onSelectConversation }: ConversationViewProps) {
+export function ConversationView({
+  conversations,
+  selectedConversation,
+  onSelectConversation,
+}: ConversationViewProps) {
   const [messageText, setMessageText] = useState("")
   const [sending, setSending] = useState(false)
   const { toast } = useToast()
@@ -94,10 +97,11 @@ export function ConversationView({ conversations, selectedConversation, onSelect
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="font-semibold text-foreground truncate">{conversation.candidateName}</h3>
                       <span className="text-xs text-muted-foreground ">
-                        {lastMessage?.timestamp && new Date(lastMessage.timestamp).toLocaleTimeString("pt-BR", {
-                          hour: "2-digit",
-                          minute: "2-digit",
-                        })}
+                        {lastMessage?.timestamp &&
+                          new Date(lastMessage.timestamp).toLocaleTimeString("pt-BR", {
+                            hour: "2-digit",
+                            minute: "2-digit",
+                          })}
                       </span>
                     </div>
                     <p className="text-sm text-muted-foreground truncate">
@@ -143,7 +147,9 @@ export function ConversationView({ conversations, selectedConversation, onSelect
                             : "bg-primary text-primary-foreground"
                       }`}
                     >
-                      <p className="text-sm">{message.text}</p>
+                      <div className="prose prose-sm max-w-none text-foreground">
+                        <ReactMarkdown>{message.text}</ReactMarkdown>
+                      </div>
                     </div>
                     <span className="text-xs text-muted-foreground">
                       {new Date(message.timestamp).toLocaleTimeString("pt-BR", {

@@ -1,4 +1,5 @@
 import { generateText } from "ai"
+import type { Candidate } from "./types"
 // import { createOpenAI } from "@ai-sdk/openai" // Removido para usar a chamada direta
 import { getConversation, updateCandidateData, getCandidate } from "./whatsapp-service"
 
@@ -8,7 +9,6 @@ const openai = createOpenAI({
   apiKey: process.env.AI_GATEWAY_API_KEY,
 })
 */
-
 
 import { supabaseAdmin } from "./supabase/service"
 
@@ -59,6 +59,20 @@ Lembre-se: você está representando a empresa, então mantenha sempre um tom re
     console.error("[v0] Erro catastrófico ao buscar system prompt, usando fallback.", error)
     return fallbackPrompt
   }
+}
+
+// Verifica se todos os detalhes obrigatórios do candidato foram coletados
+function areAllDetailsCollected(candidate: Candidate): boolean {
+  return (
+    !!candidate.name &&
+    candidate.name !== "Candidato" &&
+    !!candidate.desiredRole &&
+    !!candidate.yearsOfExperience &&
+    candidate.yearsOfExperience > 0 &&
+    !!candidate.expectedSalary &&
+    !!candidate.location &&
+    !!candidate.linkedinUrl
+  )
 }
 
 async function getCandidateInfoStatus(phone: string): Promise<string> {
@@ -158,10 +172,10 @@ INSTRUÇÕES:
 
 Gere sua resposta agora:`
 
-    console.log("--- IA Prompt ---");
-    console.log("System Prompt:", systemPrompt);
-    console.log("User Prompt:", finalPrompt);
-    console.log("-----------------");
+    console.log("--- IA Prompt ---")
+    console.log("System Prompt:", systemPrompt)
+    console.log("User Prompt:", finalPrompt)
+    console.log("-----------------")
 
     const { text } = await generateText({
       model: "openai/gpt-4o-mini", // Alterado para chamada direta
@@ -169,12 +183,19 @@ Gere sua resposta agora:`
       prompt: finalPrompt,
     })
 
-    console.log("--- IA Response ---");
-    console.log(text);
-    console.log("-------------------");
+    console.log("--- IA Response ---")
+    console.log(text)
+    console.log("-------------------")
 
-    // Apenas extrai a informação, não envia mais a mensagem daqui
+    // Extrai a informação e verifica se a coleta terminou
     await extractCandidateInfo(phone, conversationHistory + `\n[Nova] Candidato: ${userMessage}`)
+
+    // Pega os dados mais recentes do candidato após a extração
+    const updatedCandidate = await getCandidate(phone)
+    if (updatedCandidate && areAllDetailsCollected(updatedCandidate)) {
+      console.log(`[v0] Coleta de dados completa. Desativando bot para o candidato: ${phone}`)
+      await updateCandidateData(phone, { bot_status: "inactive" })
+    }
 
     return text
   } catch (error) {
@@ -182,7 +203,7 @@ Gere sua resposta agora:`
 
     // Resposta de fallback
     const fallbackMessage = "Desculpe, estou com dificuldades técnicas no momento. Você poderia repetir sua mensagem?"
-    
+
     // Apenas retorna a mensagem de fallback, não envia mais daqui
     return fallbackMessage
   }
@@ -264,7 +285,7 @@ Retorne o JSON:`,
       }
 
       if (Object.keys(validData).length > 0) {
-        updateCandidateData(phone, validData)
+        await updateCandidateData(phone, validData)
         console.log("[v0] ✅ Dados atualizados do candidato:", validData)
       } else {
         console.log("[v0] ℹ️ Nenhum dado novo extraído nesta mensagem")

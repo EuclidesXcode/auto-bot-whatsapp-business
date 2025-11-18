@@ -62,6 +62,12 @@ export async function sendWhatsAppMessage(
       timestamp: new Date().toISOString(),
     })
 
+    // Se um recrutador envia a mensagem, desativa o bot para este candidato
+    if (sender === "recruiter") {
+      console.log(`[v0] Mensagem enviada por recrutador. Desativando bot para o candidato: ${to}`)
+      await updateCandidateData(to, { bot_status: "inactive" })
+    }
+
     return true
   } catch (error) {
     console.error("[v0] Erro catastrófico ao enviar mensagem:", error)
