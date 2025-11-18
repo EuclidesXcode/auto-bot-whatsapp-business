@@ -1,5 +1,9 @@
 import { type NextRequest, NextResponse } from "next/server"
-import { updateOrCreateCandidate, addMessageToConversation } from "@/lib/whatsapp-service"
+import {
+  updateOrCreateCandidate,
+  addMessageToConversation,
+  sendWhatsAppMessage,
+} from "@/lib/whatsapp-service"
 import { processMessageWithAI } from "@/lib/ai-service"
 
 // Verificação do webhook (necessário para Meta configurar o webhook)
@@ -63,7 +67,11 @@ export async function POST(request: NextRequest) {
       console.log("[Webhook] Passo 3 concluído.");
 
       if (aiResponse) {
-        console.log("[Webhook] Resposta da IA gerada:", aiResponse)
+        console.log("[Webhook] Passo 4: Enviando resposta da IA...");
+        await sendWhatsAppMessage(phone, aiResponse)
+        console.log("[Webhook] Passo 4 concluído.");
+      } else {
+        console.log("[Webhook] Nenhuma resposta gerada pela IA.");
       }
 
       return NextResponse.json({ success: true })
