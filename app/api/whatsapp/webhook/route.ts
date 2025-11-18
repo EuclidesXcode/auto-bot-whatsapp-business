@@ -40,25 +40,30 @@ export async function POST(request: NextRequest) {
       const messageId = message.id
       const timestamp = new Date(Number.parseInt(message.timestamp) * 1000).toISOString()
 
-      console.log("[v0] Nova mensagem:", { phone, text, name })
+      console.log("[Webhook] Nova mensagem recebida:", { phone, text, name });
 
       // Salvar mensagem do candidato
+      console.log("[Webhook] Passo 1: Salvando mensagem do candidato...");
       await addMessageToConversation(phone, {
         id: messageId,
         sender: "candidate",
         text,
         timestamp,
       })
+      console.log("[Webhook] Passo 1 concluído.");
 
       // Atualizar ou criar candidato
-      await updateOrCreateCandidate(phone, name, text)
+      console.log("[Webhook] Passo 2: Atualizando/criando candidato...");
+      await updateOrCreateCandidate(phone, name)
+      console.log("[Webhook] Passo 2 concluído.");
 
       // Processar mensagem com IA e responder
+      console.log("[Webhook] Passo 3: Processando com IA...");
       const aiResponse = await processMessageWithAI(phone, text, name)
+      console.log("[Webhook] Passo 3 concluído.");
 
       if (aiResponse) {
-        // Resposta será enviada através do serviço de envio
-        console.log("[v0] Resposta da IA gerada:", aiResponse)
+        console.log("[Webhook] Resposta da IA gerada:", aiResponse)
       }
 
       return NextResponse.json({ success: true })
