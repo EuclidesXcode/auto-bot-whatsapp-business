@@ -40,60 +40,45 @@ export function DashboardClient({ user }: DashboardClientProps) {
       const [candidatesRes, conversationsRes] = await Promise.all([
         fetch("/api/candidates"),
         fetch("/api/conversations"),
-      ])
+      ]);
 
-      if (candidatesRes.ok) {
-        const candidatesData = await candidatesRes.json()
-        setCandidates(candidatesData)
-        // Se houver candidato selecionado, atualizar com nova versão
-        if (selectedCandidate) {
-          const updatedCandidate = candidatesData.find((c: Candidate) => c.id === selectedCandidate.id)
-          if (updatedCandidate) {
-            setSelectedCandidate(updatedCandidate)
-          }
-        }
+      if (!candidatesRes.ok || !conversationsRes.ok) {
+        throw new Error("Falha ao buscar dados");
       }
 
-      if (conversationsRes.ok) {
-        const conversationsData = await conversationsRes.json()
-        setConversations(conversationsData)
-        // Se houver conversa selecionada, atualizar com nova versão
-        if (selectedConversation) {
-          const updatedConversation = conversationsData.find((c: Conversation) => c.id === selectedConversation.id)
-          if (updatedConversation) {
-            setSelectedConversation(updatedConversation)
-          }
-        }
-      }
+      const candidatesData = await candidatesRes.json();
+      const conversationsData = await conversationsRes.json();
+
+      setCandidates(candidatesData);
+      setConversations(conversationsData);
+
+      // Atualiza a conversa selecionada com os dados mais recentes
+      // Usamos o `setState` funcional para acessar o `selectedConversation` mais recente
+      setSelectedConversation(currentSelected => {
+        if (!currentSelected) return null;
+        const updatedConversation = conversationsData.find((c: Conversation) => c.id === currentSelected.id);
+        return updatedConversation || null;
+      });
+
     } catch (error) {
-      console.error("[v0] Erro ao buscar dados:", error)
+      console.error("[v0] Erro ao buscar dados:", error);
     } finally {
-      setLoading(false)
+      setLoading(false);
     }
-  }
+  };
 
   useEffect(() => {
-    // Fetch initial data
+    // Busca os dados iniciais
     fetchData()
 
-    // Set up Supabase real-time subscription
-    const supabase = createClient()
-    const channel = supabase
-      .channel("messages")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          console.log("[v0] Nova mensagem detectada, atualizando dados...", payload)
-          fetchData()
-        }
-      )
-      .subscribe()
+    // Configura um intervalo para buscar dados a cada 3 segundos (polling)
+    const interval = setInterval(() => {
+      console.log("[Polling] Verificando novas mensagens...");
+      fetchData()
+    }, 3000); // 3000ms = 3 segundos
 
-    // Clean up subscription on component unmount
-    return () => {
-      supabase.removeChannel(channel)
-    }
+    // Limpa o intervalo quando o componente é desmontado para evitar vazamentos de memória
+    return () => clearInterval(interval)
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
