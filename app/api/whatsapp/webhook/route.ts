@@ -5,7 +5,7 @@ import {
   sendWhatsAppMessage,
   getCandidate,
 } from "@/lib/whatsapp-service"
-import { processMessageWithAI } from "@/lib/ai-service"
+import { processMessageWithAI } from "../../../lib/ai-service"
 
 // Verificação do webhook (necessário para Meta configurar o webhook)
 export async function GET(request: NextRequest) {
