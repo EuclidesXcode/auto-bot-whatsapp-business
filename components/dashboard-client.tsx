@@ -63,12 +63,32 @@ export function DashboardClient({ user }: DashboardClientProps) {
   useEffect(() => {
     fetchData() // Fetch initial data
 
-    const intervalId = setInterval(() => {
-      fetchData()
-    }, 5000) // Poll for new data every 5 seconds
+    const supabase = createClient()
+    const channel = supabase
+      .channel("realtime-messages")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          const newMessage = payload.new as Message
+          setConversations((prev) =>
+            prev.map((conv) => {
+              if (conv.candidateId === newMessage.candidate_id) {
+                // Evita duplicatas caso a mensagem já tenha sido adicionada
+                if (conv.messages.some((m) => m.id === newMessage.id)) {
+                  return conv
+                }
+                return { ...conv, messages: [...conv.messages, newMessage] }
+              }
+              return conv
+            })
+          )
+        }
+      )
+      .subscribe()
 
     return () => {
-      clearInterval(intervalId) // Cleanup on component unmount
+      supabase.removeChannel(channel)
     }
   }, [])
 
