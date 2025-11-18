@@ -1,11 +1,13 @@
 import { generateText } from "ai"
-import { createOpenAI } from "@ai-sdk/openai"
-import { sendWhatsAppMessage, getConversation, updateCandidateData, getCandidate } from "./whatsapp-service"
+// import { createOpenAI } from "@ai-sdk/openai" // Removido para usar a chamada direta
+import { getConversation, updateCandidateData, getCandidate } from "./whatsapp-service"
 
+/* Removido para usar a chamada direta para OpenAI em vez do Gateway Vercel
 const openai = createOpenAI({
   baseURL: "https://gateway.vercel.ai/v1",
   apiKey: process.env.AI_GATEWAY_API_KEY,
 })
+*/
 
 
 import { supabaseAdmin } from "./supabase/service"
@@ -162,7 +164,7 @@ Gere sua resposta agora:`
     console.log("-----------------");
 
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: "openai/gpt-4o-mini", // Alterado para chamada direta
       system: systemPrompt,
       prompt: finalPrompt,
     })
@@ -191,7 +193,7 @@ async function extractCandidateInfo(phone: string, conversationText: string): Pr
     const currentCandidate = await getCandidate(phone)
 
     const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
+      model: "openai/gpt-4o-mini", // Alterado para chamada direta
       system: `Você é um extrator de informações especializado. Analise a conversa e extraia APENAS as informações que ainda não foram coletadas ou que foram atualizadas.
 
 INFORMAÇÕES ATUAIS DO CANDIDATO:
