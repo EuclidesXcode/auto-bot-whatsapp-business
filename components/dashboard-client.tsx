@@ -70,20 +70,14 @@ export function DashboardClient({ user }: DashboardClientProps) {
   }
 
   useEffect(() => {
-    fetchData()
-    const supabase = createClient()
-    const candidatesChannel = supabase
-      .channel("realtime-candidates")
-      .on("postgres_changes", { event: "*", schema: "public", table: "candidates" }, () => fetchData())
-      .subscribe()
-    const messagesChannel = supabase
-      .channel("realtime-messages")
-      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => fetchData())
-      .subscribe()
+    fetchData() // Fetch initial data
+
+    const intervalId = setInterval(() => {
+      fetchData()
+    }, 5000) // Poll for new data every 5 seconds
 
     return () => {
-      supabase.removeChannel(candidatesChannel)
-      supabase.removeChannel(messagesChannel)
+      clearInterval(intervalId) // Cleanup on component unmount
     }
   }, [])
 
