@@ -3,6 +3,37 @@ import type { Candidate } from "./types"
 import { getConversation, updateCandidateData, getCandidate } from "./whatsapp-service"
 import { supabaseAdmin } from "./supabase/service"
 
+// Busca e formata um resumo das vagas abertas
+async function getOpenJobsSummary(): Promise<string> {
+  try {
+    const { data: jobs, error } = await supabaseAdmin
+      .from("jobs")
+      .select("title, seniority, location")
+      .eq("status", "open")
+      .order("created_at", { ascending: false })
+
+    if (error) {
+      console.error("[v0] Erro ao buscar vagas abertas:", error)
+      return "" // Retorna vazio em caso de erro para não quebrar o bot
+    }
+
+    if (!jobs || jobs.length === 0) {
+      return "No momento, não temos vagas abertas, mas estamos sempre em busca de novos talentos. Vamos continuar com seu cadastro."
+    }
+
+    const jobSummaries = jobs.map(
+      (job) => `- ${job.title} (Senioridade: ${job.seniority}, Local: ${job.location})`
+    )
+
+    return `VAGAS ABERTAS ATUALMENTE:\n${jobSummaries.join("\n")}`
+  } catch (error) {
+    console.error("[v0] Erro catastrófico ao buscar vagas:", error)
+    return ""
+  }
+}
+
+
+
 // Obter system prompt configurado
 async function getSystemPrompt(): Promise<string> {
   const fallbackPrompt = `Você é um assistente de recrutamento amigável e profissional chamado RecrutaBot.
@@ -27,6 +58,7 @@ DIRETRIZES DE CONVERSAÇÃO:
 
 GERENCIAMENTO DE FLUXO:
 - Seu objetivo principal e inegociável é coletar as informações listadas. Todas as suas respostas devem, direta ou indiretamente, levar a esse objetivo.
+- Se o candidato perguntar sobre vagas disponíveis, use a lista de 'VAGAS ABERTAS' fornecida no contexto para responder. Se a lista estiver vazia, informe que não há vagas no momento. Após responder, continue o fluxo de coleta de dados.
 - Se o candidato fizer perguntas sobre a empresa ou a vaga, responda de forma breve e educada, e imediatamente retorne à próxima pergunta da sua lista. Exemplo: "Ótima pergunta! Os detalhes específicos da vaga serão discutidos com o recrutador. Para continuarmos, qual seu nome completo?"
 - Se o candidato desviar completamente do assunto (ex: falar sobre o tempo, futebol), redirecione-o firmemente de volta ao processo. Exemplo: "Entendo, mas para mantermos o foco na sua candidatura, preciso que me informe seus anos de experiência." ou "Agradeço o comentário. Vamos focar em você. Para qual cargo você gostaria de se candidatar?". Use variações para não soar repetitivo.
 - Evite se aprofundar em conversas informais ou que não contribuam para a coleta de dados. Sua prioridade é a eficiência.
@@ -139,8 +171,11 @@ async function getCandidateInfoStatus(phone: string): Promise<string> {
 // Processar mensagem com IA e gerar resposta
 export async function processMessageWithAI(phone: string, userMessage: string, userName: string): Promise<string> {
   try {
-    const conversation = await getConversation(phone)
-    const systemPrompt = await getSystemPrompt()
+    const [conversation, systemPrompt, openJobsSummary] = await Promise.all([
+      getConversation(phone),
+      getSystemPrompt(),
+      getOpenJobsSummary(),
+    ])
 
     const conversationHistory = conversation.messages
       .map((msg, index) => {
@@ -151,7 +186,25 @@ export async function processMessageWithAI(phone: string, userMessage: string, u
 
     const infoStatus = await getCandidateInfoStatus(phone)
 
-    const finalPrompt = `${infoStatus}`
+    const finalPrompt = `${openJobsSummary}
+
+${infoStatus}
+
+HISTÓRICO COMPLETO DA CONVERSA:
+${conversationHistory}
+
+NOVA MENSAGEM DO CANDIDATO:
+${userMessage}
+
+INSTRUÇÕES:
+1. Analise o status das informações acima
+2. Revise TODO o histórico para entender o contexto
+3. NUNCA pergunte sobre informações que já estão coletadas
+4. Priorize coletar as informações faltantes
+5. Se todas as informações foram coletadas, agradeça e finalize
+6. Seja natural e conversacional
+
+Gere sua resposta agora:`
 
     console.log("--- IA Prompt ---")
     console.log("System Prompt:", systemPrompt)
@@ -159,7 +212,7 @@ export async function processMessageWithAI(phone: string, userMessage: string, u
     console.log("-----------------")
 
     const { text } = await generateText({
-      model: "openai/gpt-4o-mini",
+      model: "openai/gpt-4o-mini", // Alterado para chamada direta
       system: systemPrompt,
       prompt: finalPrompt,
     })
