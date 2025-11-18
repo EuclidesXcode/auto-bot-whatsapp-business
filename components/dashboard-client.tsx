@@ -68,17 +68,45 @@ export function DashboardClient({ user }: DashboardClientProps) {
   };
 
   useEffect(() => {
-    // Busca os dados iniciais
+    // 1. Busca os dados iniciais na montagem do componente
     fetchData()
 
-    // Configura um intervalo para buscar dados a cada 3 segundos (polling)
-    const interval = setInterval(() => {
-      console.log("[Polling] Verificando novas mensagens...");
-      fetchData()
-    }, 3000); // 3000ms = 3 segundos
+    // 2. Configura a inscrição em tempo real do Supabase
+    const supabase = createClient()
+    const channel = supabase
+      .channel("realtime-candidates")
+      .on(
+        "postgres_changes",
+        {
+          event: "UPDATE",
+          schema: "public",
+          table: "candidates",
+        },
+        (payload) => {
+          console.log("[Realtime] Atualização recebida para candidato:", payload.new)
+          const updatedCandidate = payload.new as Candidate
 
-    // Limpa o intervalo quando o componente é desmontado para evitar vazamentos de memória
-    return () => clearInterval(interval)
+          // Atualiza a lista de candidatos
+          setCandidates((currentCandidates) =>
+            currentCandidates.map((c) => (c.id === updatedCandidate.id ? updatedCandidate : c))
+          )
+
+          // Atualiza o candidato selecionado se ele for o que está sendo visto
+          setSelectedCandidate((currentSelected) =>
+            currentSelected?.id === updatedCandidate.id ? updatedCandidate : currentSelected
+          )
+
+          // Opcional: Atualizar também as conversas se necessário,
+          // mas a atualização do candidato é o principal aqui.
+          // Para isso, seria preciso uma subscription na tabela 'messages'.
+        }
+      )
+      .subscribe()
+
+    // 3. Limpa a inscrição quando o componente é desmontado
+    return () => {
+      supabase.removeChannel(channel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
 
