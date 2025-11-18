@@ -6,23 +6,22 @@ import { Input } from "@/components/ui/input"
 import { Send, Bot, User } from "lucide-react"
 import type { Conversation } from "@/lib/types"
 import { Avatar, AvatarFallback } from "@/components/ui/avatar"
-import { useToast } from "@/hooks/use-toast"
 import ReactMarkdown from "react-markdown"
 
 interface ConversationViewProps {
   conversations: Conversation[]
   selectedConversation: Conversation | null
   onSelectConversation: (conversation: Conversation) => void
+  onSendMessage: (message: string) => void
 }
 
 export function ConversationView({
   conversations,
   selectedConversation,
   onSelectConversation,
+  onSendMessage,
 }: ConversationViewProps) {
   const [messageText, setMessageText] = useState("")
-  const [sending, setSending] = useState(false)
-  const { toast } = useToast()
   const messagesEndRef = useRef<HTMLDivElement>(null)
 
   useEffect(() => {
@@ -31,42 +30,10 @@ export function ConversationView({
     }
   }, [selectedConversation?.messages])
 
-  const handleSendMessage = async () => {
-    if (!messageText.trim() || !selectedConversation) return
-
-    setSending(true)
-
-    try {
-      const response = await fetch("/api/whatsapp/send", {
-        method: "POST",
-        headers: {
-          "Content-Type": "application/json",
-        },
-        body: JSON.stringify({
-          to: selectedConversation.candidatePhone,
-          message: messageText,
-        }),
-      })
-
-      if (response.ok) {
-        toast({
-          title: "Mensagem enviada",
-          description: "Sua mensagem foi enviada com sucesso",
-        })
-        setMessageText("")
-      } else {
-        throw new Error("Falha ao enviar mensagem")
-      }
-    } catch (error) {
-      console.error("[v0] Erro ao enviar mensagem:", error)
-      toast({
-        title: "Erro ao enviar",
-        description: "Não foi possível enviar sua mensagem. Tente novamente.",
-        variant: "destructive",
-      })
-    } finally {
-      setSending(false)
-    }
+  const handleLocalSendMessage = () => {
+    if (!messageText.trim()) return
+    onSendMessage(messageText)
+    setMessageText("")
   }
 
   return (
@@ -136,35 +103,35 @@ export function ConversationView({
               {selectedConversation.messages.map((message) => (
                 <div
                   key={message.id}
-                  className={`flex gap-3 ${message.sender === "recruiter" ? "flex-row-reverse" : ""}`}
+                  className={`flex gap-3 ${
+                    message.sender === "recruiter" || message.sender === "bot" ? "justify-end" : ""
+                  }`}
                 >
-                  <Avatar className="h-8 w-8">
-                    <AvatarFallback>
-                      {message.sender === "bot" ? <Bot className="h-4 w-4" /> : <User className="h-4 w-4" />}
-                    </AvatarFallback>
-                  </Avatar>
                   <div
-                    className={`flex flex-col gap-1 max-w-[70%] ${message.sender === "recruiter" ? "items-end" : ""}`}
+                    className={`flex gap-3 items-end ${
+                      message.sender === "recruiter" || message.sender === "bot" ? "flex-row-reverse" : "flex-row"
+                    }`}
                   >
+                    <Avatar className="h-8 w-8">
+                      <AvatarFallback>
+                        {message.sender === "candidate" ? (
+                          <User className="h-4 w-4" />
+                        ) : (
+                          <Bot className="h-4 w-4" />
+                        )}
+                      </AvatarFallback>
+                    </Avatar>
                     <div
-                      className={`rounded-lg p-3 ${
+                      className={`rounded-lg p-3 max-w-xs lg:max-w-md ${
                         message.sender === "candidate"
                           ? "bg-muted"
-                          : message.sender === "bot"
-                            ? "bg-primary/10 border border-primary/20"
-                            : "bg-primary text-primary-foreground"
+                          : "bg-primary text-primary-foreground"
                       }`}
                     >
                       <div className="prose prose-sm max-w-none text-foreground">
                         <ReactMarkdown>{message.text}</ReactMarkdown>
                       </div>
                     </div>
-                    <span className="text-xs text-muted-foreground">
-                      {new Date(message.timestamp).toLocaleTimeString("pt-BR", {
-                        hour: "2-digit",
-                        minute: "2-digit",
-                      })}
-                    </span>
                   </div>
                 </div>
               ))}
@@ -177,10 +144,9 @@ export function ConversationView({
                   placeholder="Digite sua mensagem..."
                   value={messageText}
                   onChange={(e) => setMessageText(e.target.value)}
-                  onKeyDown={(e) => e.key === "Enter" && !sending && handleSendMessage()}
-                  disabled={sending}
+                  onKeyDown={(e) => e.key === "Enter" && handleLocalSendMessage()}
                 />
-                <Button onClick={handleSendMessage} disabled={sending}>
+                <Button onClick={handleLocalSendMessage}>
                   <Send className="h-4 w-4" />
                 </Button>
               </div>

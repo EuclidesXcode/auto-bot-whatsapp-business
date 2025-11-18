@@ -12,6 +12,7 @@ import { UserManagement } from "@/components/user-management"
 import { Sidebar } from "@/components/sidebar"
 import { mockJobs, mockSystemPrompt } from "@/lib/mock-data"
 import type { Candidate, Job, Conversation, SystemPrompt, Message } from "@/lib/types"
+import { useToast } from "@/hooks/use-toast"
 
 interface DashboardClientProps {
   user: {
@@ -34,6 +35,7 @@ export function DashboardClient({ user }: DashboardClientProps) {
   const [jobs] = useState<Job[]>(mockJobs)
   const [systemPrompt] = useState<SystemPrompt>(mockSystemPrompt)
   const [loading, setLoading] = useState(true)
+  const { toast } = useToast()
 
   const totalUnreadCount = useMemo(() => {
     return conversations.reduce((total, conv) => {
@@ -68,44 +70,17 @@ export function DashboardClient({ user }: DashboardClientProps) {
   }
 
   useEffect(() => {
-    // 1. Busca os dados iniciais
     fetchData()
-
-    // 2. Configura as inscrições em tempo real do Supabase
     const supabase = createClient()
-
     const candidatesChannel = supabase
       .channel("realtime-candidates")
-      .on(
-        "postgres_changes",
-        { event: "UPDATE", schema: "public", table: "candidates" },
-        (payload) => {
-          console.log("[Realtime] Atualização de candidato:", payload.new)
-          const updatedCandidate = payload.new as Candidate
-          setCandidates((current) =>
-            current.map((c) => (c.id === updatedCandidate.id ? updatedCandidate : c))
-          )
-          setSelectedCandidate((current) =>
-            current?.id === updatedCandidate.id ? updatedCandidate : current
-          )
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "candidates" }, () => fetchData())
       .subscribe()
-
     const messagesChannel = supabase
       .channel("realtime-messages")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          console.log("[Realtime] Nova mensagem recebida:", payload.new)
-          // A forma mais simples de garantir consistência é re-buscar os dados
-          fetchData()
-        }
-      )
+      .on("postgres_changes", { event: "*", schema: "public", table: "messages" }, () => fetchData())
       .subscribe()
 
-    // 3. Limpa as inscrições quando o componente é desmontado
     return () => {
       supabase.removeChannel(candidatesChannel)
       supabase.removeChannel(messagesChannel)
@@ -114,27 +89,65 @@ export function DashboardClient({ user }: DashboardClientProps) {
 
   const handleSelectConversation = async (conversation: Conversation) => {
     setSelectedConversation(conversation)
-
     const hasUnread = conversation.messages.some((m) => m.sender === "candidate" && !m.is_read)
-
     if (hasUnread) {
-      console.log(`[UI] Marcando mensagens como lidas para ${conversation.candidatePhone}`)
-      // Otimisticamente atualiza a UI
-      const updatedConversations = conversations.map((conv) => {
-        if (conv.id === conversation.id) {
-          return {
-            ...conv,
-            messages: conv.messages.map((m) => ({ ...m, is_read: true })),
-          }
-        }
-        return conv
-      })
+      const updatedConversations = conversations.map((conv) =>
+        conv.id === conversation.id
+          ? { ...conv, messages: conv.messages.map((m) => ({ ...m, is_read: true })) }
+          : conv
+      )
       setConversations(updatedConversations)
+      await fetch(`/api/conversations/${conversation.candidatePhone}/mark-as-read`, { method: "POST" })
+    }
+  }
 
-      // Chama a API para marcar como lido no backend
-      await fetch(`/api/conversations/${conversation.candidatePhone}/mark-as-read`, {
+  const handleSendMessage = async (messageText: string) => {
+    if (!messageText.trim() || !selectedConversation) return
+
+    const newMessage: Message = {
+      id: `local-${Date.now()}`,
+      sender: "recruiter",
+      text: messageText,
+      timestamp: new Date().toISOString(),
+      is_read: true,
+    }
+
+    // Optimistic update
+    const updatedConversations = conversations.map((conv) => {
+      if (conv.id === selectedConversation.id) {
+        return { ...conv, messages: [...conv.messages, newMessage] }
+      }
+      return conv
+    })
+    setConversations(updatedConversations)
+    setSelectedConversation((prev) => prev && { ...prev, messages: [...prev.messages, newMessage] })
+
+    try {
+      const response = await fetch("/api/whatsapp/send", {
         method: "POST",
+        headers: { "Content-Type": "application/json" },
+        body: JSON.stringify({ to: selectedConversation.candidatePhone, message: messageText }),
       })
+      if (!response.ok) throw new Error("Falha ao enviar mensagem")
+      toast({ title: "Mensagem enviada", description: "Sua mensagem foi enviada com sucesso" })
+    } catch (error) {
+      console.error("[v0] Erro ao enviar mensagem:", error)
+      toast({
+        title: "Erro ao enviar",
+        description: "Não foi possível enviar sua mensagem. Tente novamente.",
+        variant: "destructive",
+      })
+      // Revert optimistic update on error
+      setConversations((prev) =>
+        prev.map((conv) =>
+          conv.id === selectedConversation.id
+            ? { ...conv, messages: conv.messages.filter((m) => m.id !== newMessage.id) }
+            : conv
+        )
+      )
+      setSelectedConversation(
+        (prev) => prev && { ...prev, messages: prev.messages.filter((m) => m.id !== newMessage.id) }
+      )
     }
   }
 
@@ -163,7 +176,6 @@ export function DashboardClient({ user }: DashboardClientProps) {
         userName={user.name}
         unreadCount={totalUnreadCount}
       />
-
       <main className="flex-1 overflow-hidden">
         {activeView === "candidates" && (
           <div className="flex h-full">
@@ -187,25 +199,21 @@ export function DashboardClient({ user }: DashboardClientProps) {
             )}
           </div>
         )}
-
         {activeView === "conversations" && (
           <ConversationView
             conversations={conversations}
             selectedConversation={selectedConversation}
             onSelectConversation={handleSelectConversation}
+            onSendMessage={handleSendMessage}
           />
         )}
-
         {activeView === "jobs" && <JobsManagement jobs={jobs} userRole={user.role} />}
-
         {activeView === "system-prompt" && <SystemPromptConfig systemPrompt={systemPrompt} userRole={user.role} />}
-
         {activeView === "webhook-setup" && (
           <div className="h-full overflow-y-auto p-6">
             <WebhookSetupGuide />
           </div>
         )}
-
         {activeView === "users" && user.role === "admin" && (
           <div className="h-full overflow-y-auto p-6">
             <UserManagement />
