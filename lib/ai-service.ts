@@ -8,10 +8,11 @@ const openai = createOpenAI({
 })
 
 
+import { supabaseAdmin } from "./supabase/service"
+
 // Obter system prompt configurado
 async function getSystemPrompt(): Promise<string> {
-  // Em produção, busque do banco de dados
-  return `Você é um assistente de recrutamento amigável e profissional chamado RecrutaBot.
+  const fallbackPrompt = `Você é um assistente de recrutamento amigável e profissional chamado RecrutaBot.
 
 Sua missão é conduzir uma conversa natural com os candidatos para coletar as seguintes informações obrigatórias:
 1. Nome completo
@@ -37,6 +38,25 @@ TOM DE VOZ:
 - Positivo e encorajador
 
 Lembre-se: você está representando a empresa, então mantenha sempre um tom respeitoso e profissional.`
+
+  try {
+    const { data, error } = await supabaseAdmin
+      .from("system_prompts")
+      .select("content")
+      .eq("is_active", true)
+      .limit(1)
+      .single()
+
+    if (error) {
+      console.error("[v0] Erro ao buscar system prompt, usando fallback.", error)
+      return fallbackPrompt
+    }
+
+    return data?.content || fallbackPrompt
+  } catch (error) {
+    console.error("[v0] Erro catastrófico ao buscar system prompt, usando fallback.", error)
+    return fallbackPrompt
+  }
 }
 
 async function getCandidateInfoStatus(phone: string): Promise<string> {

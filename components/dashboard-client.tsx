@@ -1,6 +1,7 @@
 "use client"
 
 import { useState, useEffect } from "react"
+import { createClient } from "@/lib/supabase/client"
 import { CandidateList } from "@/components/candidate-list"
 import { CandidateDetails } from "@/components/candidate-details"
 import { ConversationView } from "@/components/conversation-view"
@@ -43,36 +44,26 @@ export function DashboardClient({ user }: DashboardClientProps) {
 
       if (candidatesRes.ok) {
         const candidatesData = await candidatesRes.json()
-        setCandidates((prevCandidates) => {
-          const newCandidates = candidatesData
-          
-          // Se houver candidato selecionado, atualizar com nova versão
-          if (selectedCandidate) {
-            const updatedCandidate = newCandidates.find((c: Candidate) => c.id === selectedCandidate.id)
-            if (updatedCandidate) {
-              setSelectedCandidate(updatedCandidate)
-            }
+        setCandidates(candidatesData)
+        // Se houver candidato selecionado, atualizar com nova versão
+        if (selectedCandidate) {
+          const updatedCandidate = candidatesData.find((c: Candidate) => c.id === selectedCandidate.id)
+          if (updatedCandidate) {
+            setSelectedCandidate(updatedCandidate)
           }
-          
-          return newCandidates
-        })
+        }
       }
 
       if (conversationsRes.ok) {
         const conversationsData = await conversationsRes.json()
-        setConversations((prevConversations) => {
-          const newConversations = conversationsData
-          
-          // Se houver conversa selecionada, atualizar com nova versão
-          if (selectedConversation) {
-            const updatedConversation = newConversations.find((c: Conversation) => c.id === selectedConversation.id)
-            if (updatedConversation) {
-              setSelectedConversation(updatedConversation)
-            }
+        setConversations(conversationsData)
+        // Se houver conversa selecionada, atualizar com nova versão
+        if (selectedConversation) {
+          const updatedConversation = conversationsData.find((c: Conversation) => c.id === selectedConversation.id)
+          if (updatedConversation) {
+            setSelectedConversation(updatedConversation)
           }
-          
-          return newConversations
-        })
+        }
       }
     } catch (error) {
       console.error("[v0] Erro ao buscar dados:", error)
@@ -82,13 +73,30 @@ export function DashboardClient({ user }: DashboardClientProps) {
   }
 
   useEffect(() => {
+    // Fetch initial data
     fetchData()
 
-    const interval = setInterval(fetchData, 2000)
+    // Set up Supabase real-time subscription
+    const supabase = createClient()
+    const channel = supabase
+      .channel("messages")
+      .on(
+        "postgres_changes",
+        { event: "INSERT", schema: "public", table: "messages" },
+        (payload) => {
+          console.log("[v0] Nova mensagem detectada, atualizando dados...", payload)
+          fetchData()
+        }
+      )
+      .subscribe()
 
-    return () => clearInterval(interval)
+    // Clean up subscription on component unmount
+    return () => {
+      supabase.removeChannel(channel)
+    }
     // eslint-disable-next-line react-hooks/exhaustive-deps
   }, [])
+
 
   const handleCandidateDeleted = async () => {
     await fetchData()
