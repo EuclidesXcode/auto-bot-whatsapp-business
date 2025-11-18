@@ -22,7 +22,7 @@ export function WebhookSetupGuide() {
   const webhookUrl =
     typeof window !== "undefined"
       ? `${window.location.origin}/api/whatsapp/webhook`
-      : "https://SEU_DOMINIO.vercel.app/api/whatsapp/webhook"
+      : "https://tria-beta.vercel.app/api/whatsapp/webhook"
 
   useEffect(() => {
     fetch("/api/whatsapp/config")

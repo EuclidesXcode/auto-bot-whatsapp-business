@@ -15,8 +15,16 @@ export async function sendWhatsAppMessage(
     return false
   }
 
-  const formattedTo = to.replace(/\D/g, "");
-  console.log(`[v0] Tentando enviar mensagem para: ${to} (Formatado como: ${formattedTo})`);
+  const cleanedTo = to.replace(/\D/g, "");
+  
+  // Normaliza o número de celular brasileiro adicionando o 9º dígito se necessário
+  let normalizedTo = cleanedTo;
+  if (cleanedTo.startsWith("55") && cleanedTo.length === 12) {
+    normalizedTo = cleanedTo.substring(0, 4) + "9" + cleanedTo.substring(4);
+    console.log(`[v0] Número brasileiro normalizado: de ${cleanedTo} para ${normalizedTo}`);
+  }
+
+  console.log(`[v0] Tentando enviar mensagem para: ${to} (Formatado como: ${normalizedTo})`);
 
   try {
     const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
@@ -28,7 +36,7 @@ export async function sendWhatsAppMessage(
       body: JSON.stringify({
         messaging_product: "whatsapp",
         recipient_type: "individual",
-        to: formattedTo,
+        to: normalizedTo, // Usar o número normalizado
         type: "text",
         text: {
           preview_url: false,
