@@ -37,15 +37,6 @@ export function DashboardClient({ user }: DashboardClientProps) {
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
-  const totalUnreadCount = useMemo(() => {
-    return conversations.reduce((total, conv) => {
-      const unreadInConv = conv.messages.filter(
-        (m) => m.sender === "candidate" && !m.is_read
-      ).length
-      return total + unreadInConv
-    }, 0)
-  }, [conversations])
-
   const fetchData = async () => {
     try {
       const [candidatesRes, conversationsRes] = await Promise.all([
@@ -84,14 +75,25 @@ export function DashboardClient({ user }: DashboardClientProps) {
   const handleSelectConversation = async (conversation: Conversation) => {
     setSelectedConversation(conversation)
     const hasUnread = conversation.messages.some((m) => m.sender === "candidate" && !m.is_read)
+
     if (hasUnread) {
-      const updatedConversations = conversations.map((conv) =>
-        conv.id === conversation.id
-          ? { ...conv, messages: conv.messages.map((m) => ({ ...m, is_read: true })) }
-          : conv
-      )
-      setConversations(updatedConversations)
-      await fetch(`/api/conversations/${conversation.candidatePhone}/mark-as-read`, { method: "POST" })
+      try {
+        const res = await fetch(`/api/conversations/${conversation.candidatePhone}/mark-as-read`, {
+          method: "POST",
+        })
+        if (!res.ok) {
+          throw new Error("Falha ao marcar mensagens como lidas.")
+        }
+        // Refetch data to ensure UI is in sync
+        await fetchData()
+      } catch (error) {
+        console.error("[v0] Erro ao marcar mensagens como lidas:", error)
+        toast({
+          title: "Erro",
+          description: "Não foi possível atualizar o status das mensagens.",
+          variant: "destructive",
+        })
+      }
     }
   }
 
@@ -168,7 +170,6 @@ export function DashboardClient({ user }: DashboardClientProps) {
         onViewChange={setActiveView}
         userRole={user.role}
         userName={user.name}
-        unreadCount={totalUnreadCount}
       />
       <main className="flex-1 overflow-hidden">
         {activeView === "candidates" && (

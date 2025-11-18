@@ -49,7 +49,15 @@ export function ConversationView({
           {conversations.map((conversation) => {
             const lastMessage = conversation.messages[conversation.messages.length - 1]
             const isSelected = selectedConversation?.id === conversation.id
-            const hasUnread = conversation.messages.some((m) => m.sender === "candidate" && !m.is_read)
+
+            let lastMessagePreview = lastMessage?.text ?? "Nenhuma mensagem ainda"
+            if (lastMessage) {
+              if (lastMessage.sender === "recruiter") {
+                lastMessagePreview = `Você: ${lastMessage.text}`
+              } else if (lastMessage.sender === "bot") {
+                lastMessagePreview = `Bot: ${lastMessage.text}`
+              }
+            }
 
             return (
               <button
@@ -64,9 +72,6 @@ export function ConversationView({
                     <Avatar>
                       <AvatarFallback>{conversation.candidateName[0]}</AvatarFallback>
                     </Avatar>
-                    {hasUnread && (
-                      <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
-                    )}
                   </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
@@ -79,9 +84,7 @@ export function ConversationView({
                           })}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">
-                      {lastMessage?.text ?? "Nenhuma mensagem ainda"}
-                    </p>
+                    <p className="text-sm text-muted-foreground truncate">{lastMessagePreview}</p>
                   </div>
                 </div>
               </button>

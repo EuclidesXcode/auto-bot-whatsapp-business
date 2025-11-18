@@ -13,10 +13,9 @@ interface SidebarProps {
   onViewChange: (view: "candidates" | "conversations" | "jobs" | "system-prompt" | "webhook-setup" | "users") => void
   userRole: "admin" | "recruiter"
   userName: string
-  unreadCount?: number
 }
 
-export function Sidebar({ activeView, onViewChange, userRole, userName, unreadCount = 0 }: SidebarProps) {
+export function Sidebar({ activeView, onViewChange, userRole, userName }: SidebarProps) {
   const [logo, setLogo] = useState<string | null>(null)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const router = useRouter()
@@ -130,9 +129,6 @@ export function Sidebar({ activeView, onViewChange, userRole, userName, unreadCo
             >
               <Icon className="mr-3 h-4 w-4" />
               <span className="flex-1 text-left">{item.label}</span>
-              {item.id === "conversations" && unreadCount > 0 && (
-                <Badge className="h-5 bg-red-500 text-white">{unreadCount}</Badge>
-              )}
             </Button>
           )
         })}
