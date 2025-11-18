@@ -93,7 +93,7 @@ export function ConversationView({ conversations, selectedConversation, onSelect
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="font-semibold text-foreground truncate">{conversation.candidateName}</h3>
-                      <span className="text-xs text-muted-foreground">
+                      <span className="text-xs text-muted-foreground ">
                         {lastMessage?.timestamp && new Date(lastMessage.timestamp).toLocaleTimeString("pt-BR", {
                           hour: "2-digit",
                           minute: "2-digit",

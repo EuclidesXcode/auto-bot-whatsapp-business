@@ -171,9 +171,7 @@ Gere sua resposta agora:`
     console.log(text);
     console.log("-------------------");
 
-    // Enviar resposta via WhatsApp
-    await sendWhatsAppMessage(phone, text, "bot")
-
+    // Apenas extrai a informação, não envia mais a mensagem daqui
     await extractCandidateInfo(phone, conversationHistory + `\n[Nova] Candidato: ${userMessage}`)
 
     return text
@@ -182,8 +180,8 @@ Gere sua resposta agora:`
 
     // Resposta de fallback
     const fallbackMessage = "Desculpe, estou com dificuldades técnicas no momento. Você poderia repetir sua mensagem?"
-    await sendWhatsAppMessage(phone, fallbackMessage)
-
+    
+    // Apenas retorna a mensagem de fallback, não envia mais daqui
     return fallbackMessage
   }
 }
