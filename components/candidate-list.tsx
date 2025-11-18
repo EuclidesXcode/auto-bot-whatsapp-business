@@ -117,7 +117,10 @@ export function CandidateList({ candidates, selectedCandidate, onSelectCandidate
               )}
 
               <div className="mt-2 text-xs text-muted-foreground">
-                Última mensagem: {new Date(candidate.lastMessageAt).toLocaleDateString("pt-BR")}
+                Última mensagem:{" "}
+                {candidate.lastMessageAt
+                  ? new Date(candidate.lastMessageAt).toLocaleDateString("pt-BR")
+                  : "-"}
               </div>
             </button>
           )
