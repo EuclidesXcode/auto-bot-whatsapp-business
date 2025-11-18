@@ -100,41 +100,47 @@ export function ConversationView({
             </div>
 
             <div className="flex-1 overflow-y-auto p-6 space-y-4">
-              {selectedConversation.messages.map((message) => (
-                <div
-                  key={message.id}
-                  className={`flex gap-3 ${
-                    message.sender === "recruiter" || message.sender === "bot" ? "justify-end" : ""
-                  }`}
-                >
+              {selectedConversation.messages.map((message) => {
+                const isFromSystem = message.sender === "bot" || message.sender === "recruiter"
+                return (
                   <div
-                    className={`flex gap-3 items-end ${
-                      message.sender === "recruiter" || message.sender === "bot" ? "flex-row-reverse" : "flex-row"
-                    }`}
+                    key={message.id}
+                    className={`flex items-end gap-3 ${isFromSystem ? "justify-end" : ""}`}
                   >
-                    <Avatar className="h-8 w-8">
-                      <AvatarFallback>
-                        {message.sender === "candidate" ? (
+                    {!isFromSystem && (
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>
                           <User className="h-4 w-4" />
-                        ) : (
-                          <Bot className="h-4 w-4" />
-                        )}
-                      </AvatarFallback>
-                    </Avatar>
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                     <div
                       className={`rounded-lg p-3 max-w-xs lg:max-w-md ${
                         message.sender === "candidate"
                           ? "bg-muted"
-                          : "bg-primary text-primary-foreground"
+                          : message.sender === "bot"
+                            ? "bg-primary/10 border border-primary/20"
+                            : "bg-primary text-primary-foreground" // Recruiter
                       }`}
                     >
-                      <div className="prose prose-sm max-w-none text-foreground">
+                      <div className="prose prose-sm max-w-none text-inherit">
                         <ReactMarkdown>{message.text}</ReactMarkdown>
                       </div>
                     </div>
+                    {isFromSystem && (
+                      <Avatar className="h-8 w-8">
+                        <AvatarFallback>
+                          {message.sender === "bot" ? (
+                            <Bot className="h-4 w-4" />
+                          ) : (
+                            <User className="h-4 w-4" />
+                          )}
+                        </AvatarFallback>
+                      </Avatar>
+                    )}
                   </div>
-                </div>
-              ))}
+                )
+              })}
               <div ref={messagesEndRef} />
             </div>
 
