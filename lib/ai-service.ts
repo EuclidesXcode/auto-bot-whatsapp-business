@@ -138,11 +138,7 @@ export async function processMessageWithAI(phone: string, userMessage: string, u
 
     const infoStatus = await getCandidateInfoStatus(phone)
 
-    console.log("[v0] Status das informações:", infoStatus)
-
-    const { text } = await generateText({
-      model: openai("gpt-4o-mini"),
-      prompt: `${infoStatus}
+    const finalPrompt = `${infoStatus}
 
 HISTÓRICO COMPLETO DA CONVERSA:
 ${conversationHistory}
@@ -158,10 +154,22 @@ INSTRUÇÕES:
 5. Se todas as informações foram coletadas, agradeça e finalize
 6. Seja natural e conversacional
 
-Gere sua resposta agora:`,
+Gere sua resposta agora:`
+
+    console.log("--- IA Prompt ---");
+    console.log("System Prompt:", systemPrompt);
+    console.log("User Prompt:", finalPrompt);
+    console.log("-----------------");
+
+    const { text } = await generateText({
+      model: openai("gpt-4o-mini"),
+      system: systemPrompt,
+      prompt: finalPrompt,
     })
 
-    console.log("[v0] Resposta da IA:", text)
+    console.log("--- IA Response ---");
+    console.log(text);
+    console.log("-------------------");
 
     // Enviar resposta via WhatsApp
     await sendWhatsAppMessage(phone, text)
