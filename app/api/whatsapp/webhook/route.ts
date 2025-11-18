@@ -53,19 +53,19 @@ export async function POST(request: NextRequest) {
 
       console.log("[Webhook] Nova mensagem recebida:", { phone, text, name })
 
-      // Salvar mensagem do candidato
-      console.log("[Webhook] Passo 1: Salvando mensagem do candidato...")
+      // Passo 1: Garante que o candidato exista antes de salvar a mensagem
+      console.log("[Webhook] Passo 1: Atualizando/criando candidato...")
+      await updateOrCreateCandidate(phone, name)
+      console.log("[Webhook] Passo 1 concluído.")
+
+      // Passo 2: Salva a mensagem do candidato
+      console.log("[Webhook] Passo 2: Salvando mensagem do candidato...")
       await addMessageToConversation(phone, {
         id: messageId,
         sender: "candidate",
         text,
         timestamp,
       })
-      console.log("[Webhook] Passo 1 concluído.")
-
-      // Atualizar ou criar candidato
-      console.log("[Webhook] Passo 2: Atualizando/criando candidato...")
-      await updateOrCreateCandidate(phone, name)
       console.log("[Webhook] Passo 2 concluído.")
 
       // Processar mensagem com IA e responder
