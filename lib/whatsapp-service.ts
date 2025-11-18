@@ -2,7 +2,11 @@ import type { Candidate, Message } from "./types"
 import { supabaseAdmin } from "./supabase/service"
 
 // Enviar mensagem via WhatsApp Business API
-export async function sendWhatsAppMessage(to: string, message: string): Promise<boolean> {
+export async function sendWhatsAppMessage(
+  to: string,
+  message: string,
+  sender: "bot" | "recruiter" = "bot"
+): Promise<boolean> {
   const phoneNumberId = process.env.WHATSAPP_PHONE_NUMBER_ID
   const accessToken = process.env.WHATSAPP_ACCESS_TOKEN
 
@@ -15,7 +19,7 @@ export async function sendWhatsAppMessage(to: string, message: string): Promise<
   console.log(`[v0] Tentando enviar mensagem para: ${to} (Formatado como: ${formattedTo})`);
 
   try {
-    const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
+    const response = await fetch(`https://graph.facebook.com/v22.0/${phoneNumberId}/messages`, {
       method: "POST",
       headers: {
         Authorization: `Bearer ${accessToken}`,
@@ -42,10 +46,10 @@ export async function sendWhatsAppMessage(to: string, message: string): Promise<
     const data = await response.json()
     console.log("[v0] Mensagem enviada via WhatsApp:", data)
 
-    // Salvar mensagem do bot no banco de dados
+    // Salvar mensagem enviada no banco de dados
     await addMessageToConversation(to, {
-      id: data.messages?.[0]?.id || `bot-${Date.now()}`,
-      sender: "bot",
+      id: data.messages?.[0]?.id || `${sender}-${Date.now()}`,
+      sender: sender, // Usar o parâmetro 'sender'
       text: message,
       timestamp: new Date().toISOString(),
     })

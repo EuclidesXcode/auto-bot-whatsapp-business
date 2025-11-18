@@ -172,7 +172,7 @@ Gere sua resposta agora:`
     console.log("-------------------");
 
     // Enviar resposta via WhatsApp
-    await sendWhatsAppMessage(phone, text)
+    await sendWhatsAppMessage(phone, text, "bot")
 
     await extractCandidateInfo(phone, conversationHistory + `\n[Nova] Candidato: ${userMessage}`)
 

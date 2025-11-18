@@ -9,7 +9,7 @@ export async function POST(request: NextRequest) {
       return NextResponse.json({ error: "Parâmetros obrigatórios: to, message" }, { status: 400 })
     }
 
-    const success = await sendWhatsAppMessage(to, message)
+    const success = await sendWhatsAppMessage(to, message, "recruiter")
 
     if (success) {
       return NextResponse.json({ success: true, message: "Mensagem enviada com sucesso" })
