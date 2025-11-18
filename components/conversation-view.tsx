@@ -94,13 +94,15 @@ export function ConversationView({ conversations, selectedConversation, onSelect
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="font-semibold text-foreground truncate">{conversation.candidateName}</h3>
                       <span className="text-xs text-muted-foreground">
-                        {new Date(lastMessage.timestamp).toLocaleTimeString("pt-BR", {
+                        {lastMessage?.timestamp && new Date(lastMessage.timestamp).toLocaleTimeString("pt-BR", {
                           hour: "2-digit",
                           minute: "2-digit",
                         })}
                       </span>
                     </div>
-                    <p className="text-sm text-muted-foreground truncate">{lastMessage.text}</p>
+                    <p className="text-sm text-muted-foreground truncate">
+                      {lastMessage?.text ?? "Nenhuma mensagem ainda"}
+                    </p>
                   </div>
                 </div>
               </button>

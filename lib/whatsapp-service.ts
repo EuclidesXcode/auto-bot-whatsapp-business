@@ -71,23 +71,53 @@ export async function addMessageToConversation(phone: string, message: Message):
 
 // Obter todas as conversas do banco de dados
 export async function getConversations() {
-  const { data: candidates, error } = await supabaseAdmin
+  // Passo 1: Buscar todos os candidatos
+  const { data: candidates, error: candidatesError } = await supabaseAdmin
     .from("candidates")
-    .select("id, name, phone, messages (id, sender, text, timestamp)")
-    .order("last_message_at", { ascending: false })
+    .select("id, name, phone")
+    .order("last_message_at", { ascending: false });
 
-  if (error) {
-    console.error("[v0] Erro ao buscar conversas do DB:", error)
-    return []
+  if (candidatesError) {
+    console.error("[v0] Erro ao buscar candidatos do DB:", candidatesError);
+    return [];
   }
 
+  // Passo 2: Buscar todas as mensagens
+  const { data: messages, error: messagesError } = await supabaseAdmin
+    .from("messages")
+    .select("id, candidate_phone, sender, text, timestamp");
+
+  if (messagesError) {
+    console.error("[v0] Erro ao buscar mensagens do DB:", messagesError);
+    // Retorna os candidatos mesmo que as mensagens falhem, para não quebrar a UI
+    return candidates.map(c => ({
+      id: c.id,
+      candidateId: c.id,
+      candidateName: c.name,
+      candidatePhone: c.phone,
+      messages: [],
+    }));
+  }
+
+  // Passo 3: Mapear mensagens para cada candidato
+  const messagesByCandidate = messages.reduce<Record<string, Message[]>>((acc, msg) => {
+    if (!acc[msg.candidate_phone]) {
+      acc[msg.candidate_phone] = [];
+    }
+    acc[msg.candidate_phone].push(msg);
+    return acc;
+  }, {});
+
+  // Passo 4: Combinar os dados e retornar as conversas completas
   return candidates.map(c => ({
     id: c.id,
     candidateId: c.id,
     candidateName: c.name,
     candidatePhone: c.phone,
-    messages: c.messages.sort((a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()),
-  }))
+    messages: (messagesByCandidate[c.phone] || []).sort(
+      (a, b) => new Date(a.timestamp).getTime() - new Date(b.timestamp).getTime()
+    ),
+  }));
 }
 
 // Obter uma conversa específica do banco de dados
