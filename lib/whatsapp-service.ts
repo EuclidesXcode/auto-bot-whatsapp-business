@@ -27,14 +27,13 @@ export async function sendWhatsAppMessage(
       },
       body: JSON.stringify({
         messaging_product: "whatsapp",
+        recipient_type: "individual",
         to: formattedTo,
-        type: "template",
-        template: {
-          name: "hello_world",
-          language: {
-            code: "en_US"
-          }
-        }
+        type: "text",
+        text: {
+          preview_url: false,
+          body: message,
+        },
       }),
     })
 
