@@ -80,6 +80,7 @@ export function ConversationView({
           {conversations.map((conversation) => {
             const lastMessage = conversation.messages[conversation.messages.length - 1]
             const isSelected = selectedConversation?.id === conversation.id
+            const hasUnread = conversation.messages.some((m) => m.sender === "candidate" && !m.is_read)
 
             return (
               <button
@@ -90,9 +91,14 @@ export function ConversationView({
                 }`}
               >
                 <div className="flex items-start gap-3">
-                  <Avatar>
-                    <AvatarFallback>{conversation.candidateName[0]}</AvatarFallback>
-                  </Avatar>
+                  <div className="relative">
+                    <Avatar>
+                      <AvatarFallback>{conversation.candidateName[0]}</AvatarFallback>
+                    </Avatar>
+                    {hasUnread && (
+                      <span className="absolute top-0 right-0 block h-2.5 w-2.5 rounded-full bg-red-500 ring-2 ring-white" />
+                    )}
+                  </div>
                   <div className="flex-1 min-w-0">
                     <div className="flex items-center justify-between mb-1">
                       <h3 className="font-semibold text-foreground truncate">{conversation.candidateName}</h3>

@@ -1,22 +1,20 @@
-"use client"
-
-import type React from "react"
-
-import { Users, MessageSquare, Briefcase, Settings, Webhook, Upload, LogOut, UserCog } from 'lucide-react'
+import { Users, MessageSquare, Briefcase, Settings, Webhook, Upload, LogOut, UserCog } from "lucide-react"
 import { Button } from "@/components/ui/button"
+import { Badge } from "@/components/ui/badge"
 import { useEffect, useState } from "react"
 import Image from "next/image"
 import { createClient } from "@/lib/supabase/client"
-import { useRouter } from 'next/navigation'
+import { useRouter } from "next/navigation"
 
 interface SidebarProps {
   activeView: "candidates" | "conversations" | "jobs" | "system-prompt" | "webhook-setup" | "users"
   onViewChange: (view: "candidates" | "conversations" | "jobs" | "system-prompt" | "webhook-setup" | "users") => void
   userRole: "admin" | "recruiter"
   userName: string
+  unreadCount?: number
 }
 
-export function Sidebar({ activeView, onViewChange, userRole, userName }: SidebarProps) {
+export function Sidebar({ activeView, onViewChange, userRole, userName, unreadCount = 0 }: SidebarProps) {
   const [logo, setLogo] = useState<string | null>(null)
   const [isUploadingLogo, setIsUploadingLogo] = useState(false)
   const router = useRouter()
@@ -88,10 +86,10 @@ export function Sidebar({ activeView, onViewChange, userRole, userName }: Sideba
               className="hidden"
               disabled={isUploadingLogo}
             />
-            <Button 
-              className="w-full bg-[#4545FF] hover:bg-[#4545FF]/90 text-white" 
-              size="sm" 
-              asChild 
+            <Button
+              className="w-full bg-[#4545FF] hover:bg-[#4545FF]/90 text-white"
+              size="sm"
+              asChild
               disabled={isUploadingLogo}
             >
               <span className="cursor-pointer">
@@ -101,9 +99,9 @@ export function Sidebar({ activeView, onViewChange, userRole, userName }: Sideba
             </Button>
           </label>
           {logo && (
-            <Button 
-              className="px-3 bg-[#4545FF] hover:bg-[#4545FF]/90 text-white" 
-              size="sm" 
+            <Button
+              className="px-3 bg-[#4545FF] hover:bg-[#4545FF]/90 text-white"
+              size="sm"
               onClick={handleRemoveLogo}
             >
               Remover
@@ -122,22 +120,25 @@ export function Sidebar({ activeView, onViewChange, userRole, userName }: Sideba
               key={item.id}
               variant={isActive ? "secondary" : "ghost"}
               className={`w-full justify-start text-white ${
-                isActive 
-                  ? "bg-sidebar-primary hover:bg-sidebar-primary/90" 
+                isActive
+                  ? "bg-sidebar-primary hover:bg-sidebar-primary/90"
                   : "hover:bg-white/20 hover:text-white"
               }`}
               onClick={() => onViewChange(item.id)}
             >
               <Icon className="mr-3 h-4 w-4" />
-              {item.label}
+              <span className="flex-1 text-left">{item.label}</span>
+              {item.id === "conversations" && unreadCount > 0 && (
+                <Badge className="h-5 bg-red-500 text-white">{unreadCount}</Badge>
+              )}
             </Button>
           )
         })}
       </nav>
 
       <div className="px-3 pb-4 space-y-2">
-        <Button 
-          className="w-full justify-start bg-[#4545FF] hover:bg-[#4545FF]/90 text-white" 
+        <Button
+          className="w-full justify-start bg-[#4545FF] hover:bg-[#4545FF]/90 text-white"
           onClick={handleLogout}
         >
           <LogOut className="mr-3 h-4 w-4" />

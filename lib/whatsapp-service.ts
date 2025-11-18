@@ -60,6 +60,7 @@ export async function sendWhatsAppMessage(
       sender: sender, // Usar o parâmetro 'sender'
       text: message,
       timestamp: new Date().toISOString(),
+      is_read: true, // Mensagens enviadas pelo sistema são sempre 'lidas'
     })
 
     return true
@@ -77,6 +78,7 @@ export async function addMessageToConversation(phone: string, message: Message):
     sender: message.sender,
     text: message.text,
     timestamp: message.timestamp,
+    is_read: message.is_read ?? false, // Default para false se não for fornecido
   })
 
   if (error) {
@@ -100,7 +102,7 @@ export async function getConversations() {
   // Passo 2: Buscar todas as mensagens
   const { data: messages, error: messagesError } = await supabaseAdmin
     .from("messages")
-    .select("id, candidate_phone, sender, text, timestamp");
+    .select("id, candidate_phone, sender, text, timestamp, is_read");
 
   if (messagesError) {
     console.error("[v0] Erro ao buscar mensagens do DB:", messagesError);

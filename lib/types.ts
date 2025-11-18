@@ -34,6 +34,7 @@ export interface Message {
   sender: "candidate" | "bot" | "recruiter"
   text: string
   timestamp: string
+  is_read?: boolean
 }
 
 export interface Conversation {
