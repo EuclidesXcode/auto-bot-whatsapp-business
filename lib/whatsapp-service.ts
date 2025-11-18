@@ -11,6 +11,9 @@ export async function sendWhatsAppMessage(to: string, message: string): Promise<
     return false
   }
 
+  const formattedTo = to.replace(/\D/g, "");
+  console.log(`[v0] Tentando enviar mensagem para: ${to} (Formatado como: ${formattedTo})`);
+
   try {
     const response = await fetch(`https://graph.facebook.com/v18.0/${phoneNumberId}/messages`, {
       method: "POST",
@@ -21,7 +24,7 @@ export async function sendWhatsAppMessage(to: string, message: string): Promise<
       body: JSON.stringify({
         messaging_product: "whatsapp",
         recipient_type: "individual",
-        to: to.replace(/\D/g, ""), // Remove caracteres não numéricos
+        to: formattedTo,
         type: "text",
         text: {
           preview_url: false,
