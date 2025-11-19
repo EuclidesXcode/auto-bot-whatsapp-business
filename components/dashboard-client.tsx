@@ -84,16 +84,25 @@ export function DashboardClient({ user }: DashboardClientProps) {
   }
 
   useEffect(() => {
-    fetchData() // Busca inicial e completa
+    let isMounted = true
 
-    // Polling otimizado apenas para conversas
-    const intervalId = setInterval(() => {
-      fetchConversations()
-    }, 3000)
+    const pollConversations = async () => {
+      if (!isMounted) return
+      await fetchConversations()
+      // Agenda a próxima busca após a conclusão da atual
+      setTimeout(pollConversations, 1500)
+    }
 
-    // Limpa o intervalo quando o componente é desmontado
+    // Carga inicial completa
+    fetchData()
+
+    // Inicia o polling otimizado
+    const initialPollTimeout = setTimeout(pollConversations, 1500)
+
+    // Limpa o timeout quando o componente é desmontado
     return () => {
-      clearInterval(intervalId)
+      isMounted = false
+      clearTimeout(initialPollTimeout)
     }
   }, [])
 
