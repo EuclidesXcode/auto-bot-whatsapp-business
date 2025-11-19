@@ -2,7 +2,7 @@ import { NextResponse } from "next/server"
 import { extractInfoFromResume } from "@/lib/ai-service"
 import { updateCandidateData, sendWhatsAppMessage } from "@/lib/whatsapp-service"
 import pdf from "pdf-parse"
-import xlsx from "xlsx"
+import * as xlsx from "xlsx"
 
 // Função para buscar a URL do arquivo e fazer o download
 async function downloadMedia(mediaId: string): Promise<Buffer> {
