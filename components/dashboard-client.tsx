@@ -32,36 +32,45 @@ export function DashboardClient({ user }: DashboardClientProps) {
 
   const [candidates, setCandidates] = useState<Candidate[]>([])
   const [conversations, setConversations] = useState<Conversation[]>([])
-  const [jobs] = useState<Job[]>(mockJobs)
+  const [jobs, setJobs] = useState<Job[]>([])
   const [systemPrompt] = useState<SystemPrompt>(mockSystemPrompt)
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
   const fetchData = async () => {
+    setLoading(true)
     try {
-      const [candidatesRes, conversationsRes] = await Promise.all([
+      const [candidatesRes, conversationsRes, jobsRes] = await Promise.all([
         fetch("/api/candidates"),
         fetch("/api/conversations"),
+        fetch("/api/jobs"),
       ])
 
-      if (!candidatesRes.ok || !conversationsRes.ok) {
+      if (!candidatesRes.ok || !conversationsRes.ok || !jobsRes.ok) {
         throw new Error("Falha ao buscar dados")
       }
 
       const candidatesData = await candidatesRes.json()
       const conversationsData = await conversationsRes.json()
+      const jobsData = await jobsRes.json()
 
       setCandidates(candidatesData)
       setConversations(conversationsData)
+      setJobs(jobsData)
     } catch (error) {
-      console.error("[v0] Erro ao buscar dados:", error)
+      console.error("Erro ao buscar dados:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível carregar os dados do dashboard.",
+        variant: "destructive",
+      })
     } finally {
       setLoading(false)
     }
   }
 
   useEffect(() => {
-    fetchData() // Fetch initial data
+    fetchData()
 
     const supabase = createClient()
     const channel = supabase
@@ -74,7 +83,6 @@ export function DashboardClient({ user }: DashboardClientProps) {
           setConversations((prev) =>
             prev.map((conv) => {
               if (conv.candidateId === newMessage.candidate_id) {
-                // Evita duplicatas caso a mensagem já tenha sido adicionada
                 if (conv.messages.some((m) => m.id === newMessage.id)) {
                   return conv
                 }
@@ -167,6 +175,35 @@ export function DashboardClient({ user }: DashboardClientProps) {
     }
   }
 
+  const handleDeleteConversation = async (conversationId: string) => {
+    try {
+      const response = await fetch(`/api/candidates/${conversationId}`, {
+        method: "DELETE",
+      })
+
+      if (!response.ok) {
+        throw new Error("Falha ao excluir a conversa.")
+      }
+
+      toast({
+        title: "Conversa Excluída",
+        description: "A conversa e os dados do candidato foram removidos.",
+      })
+
+      // Atualiza o estado local para remover a conversa
+      setConversations((prev) => prev.filter((conv) => conv.candidatePhone !== conversationId))
+      setCandidates((prev) => prev.filter((cand) => cand.phone !== conversationId))
+      setSelectedConversation(null)
+    } catch (error) {
+      console.error("[v0] Erro ao excluir conversa:", error)
+      toast({
+        title: "Erro",
+        description: "Não foi possível excluir a conversa. Tente novamente.",
+        variant: "destructive",
+      })
+    }
+  }
+
   const handleCandidateDeleted = async () => {
     await fetchData()
     setSelectedCandidate(null)
@@ -220,9 +257,10 @@ export function DashboardClient({ user }: DashboardClientProps) {
             selectedConversation={selectedConversation}
             onSelectConversation={handleSelectConversation}
             onSendMessage={handleSendMessage}
+            onDeleteConversation={handleDeleteConversation}
           />
         )}
-        {activeView === "jobs" && <JobsManagement jobs={jobs} userRole={user.role} />}
+        {activeView === "jobs" && <JobsManagement jobs={jobs} candidates={candidates} userRole={user.role} />}
         {activeView === "system-prompt" && <SystemPromptConfig systemPrompt={systemPrompt} userRole={user.role} />}
         {activeView === "webhook-setup" && (
           <div className="h-full overflow-y-auto p-6">

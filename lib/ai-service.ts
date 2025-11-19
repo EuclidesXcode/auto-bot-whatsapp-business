@@ -38,7 +38,12 @@ async function getOpenJobsSummary(): Promise<string> {
 async function getSystemPrompt(): Promise<string> {
   const fallbackPrompt = `Você é um assistente de recrutamento amigável e profissional chamado RecrutaBot.
 
-Sua missão é conduzir uma conversa natural com os candidatos para coletar as seguintes informações obrigatórias:
+DIRETRIZES DE CONVERSAÇÃO:
+- INÍCIO DA CONVERSA: Apresente-se e pergunte ao candidato se ele prefere responder a algumas perguntas ou enviar um currículo (PDF, XLSX, CSV) para agilizar o processo.
+- Se o candidato escolher enviar o currículo, responda: "Ótimo! Por favor, anexe e envie seu currículo aqui no chat. Vou analisar as informações para você." e aguarde o arquivo.
+- Se o candidato escolher responder às perguntas, inicie a coleta de dados normalmente, começando pelo nome completo.
+
+Sua missão é conduzir uma conversa natural com os candidatos para coletar as seguintes informações obrigatórias (caso ele não envie o currículo):
 1. Nome completo
 2. Cargo desejado
 3. Anos de experiência na área
@@ -46,7 +51,6 @@ Sua missão é conduzir uma conversa natural com os candidatos para coletar as s
 5. Localização (cidade/estado ou preferência por trabalho remoto)
 6. Link do LinkedIn ou portfólio online
 
-DIRETRIZES DE CONVERSAÇÃO:
 - Seja cordial, mas profissional.
 - Faça uma pergunta por vez para não sobrecarregar o candidato.
 - Use linguagem clara e direta em português brasileiro.
@@ -313,5 +317,59 @@ Retorne o JSON:`,
     }
   } catch (error) {
     console.error("[v0] Erro ao extrair informações:", error)
+  }
+}
+
+// Extrai informações estruturadas de um texto de currículo
+export async function extractInfoFromResume(resumeText: string): Promise<Partial<Candidate> | null> {
+  try {
+    const systemPrompt = `Você é um especialista em RH e um robô de extração de dados altamente preciso. Sua tarefa é analisar o texto de um currículo e extrair as informações do candidato em um formato JSON.
+
+REGRAS DE EXTRAÇÃO:
+- Extraia apenas as informações presentes no texto. Não invente dados.
+- Se uma informação não for encontrada, omita a chave do JSON.
+- 'name': Nome completo do candidato.
+- 'email': O endereço de e-mail principal.
+- 'phone': O número de telefone.
+- 'location': Cidade e estado. Ex: "São Paulo, SP".
+- 'linkedinUrl': O link completo para o perfil do LinkedIn.
+- 'yearsOfExperience': Um NÚMERO representando o total de anos de experiência relevante. Se o texto disser "5 anos e 6 meses", retorne 5.5.
+- 'skills': Uma ARRAY de strings com as principais habilidades técnicas e ferramentas. Ex: ["React", "Node.js", "TypeScript", "AWS"].
+- 'education': Um resumo em uma frase da formação principal. Ex: "Bacharel em Ciência da Computação pela USP".
+
+Retorne APENAS o objeto JSON, sem nenhum texto ou explicação adicional.`
+
+    const { text } = await generateText({
+      model: "openai/gpt-4o-mini",
+      system: systemPrompt,
+      prompt: `Analise o seguinte texto de currículo e extraia os dados conforme as regras:\n\n--- INÍCIO DO CURRÍCULO ---\n${resumeText}\n--- FIM DO CURRÍCULO ---`,
+    })
+
+    console.log("[AI-Resume] Resposta da IA para extração:", text)
+
+    // Limpa e faz o parse da resposta JSON
+    const cleanText = text.replace(/```json\n?/g, "").replace(/```\n?/g, "").trim()
+    const data = JSON.parse(cleanText)
+
+    // Validação e formatação final dos dados
+    const validData: Partial<Candidate> = {}
+    if (data.name && typeof data.name === "string") validData.name = data.name
+    if (data.email && typeof data.email === "string") validData.email = data.email
+    if (data.phone && typeof data.phone === "string") validData.phone = data.phone
+    if (data.location && typeof data.location === "string") validData.location = data.location
+    if (data.linkedinUrl && typeof data.linkedinUrl === "string") validData.linkedinUrl = data.linkedinUrl
+    if (data.yearsOfExperience && typeof data.yearsOfExperience === "number") {
+      validData.yearsOfExperience = data.yearsOfExperience
+      // Sugere senioridade com base na experiência
+      if (data.yearsOfExperience < 3) validData.seniority = "Júnior"
+      else if (data.yearsOfExperience < 6) validData.seniority = "Pleno"
+      else validData.seniority = "Sênior"
+    }
+    // Adicione aqui a extração de 'skills' e 'education' se os campos existirem no seu tipo Candidate
+
+    return validData
+  } catch (error) {
+    console.error("[AI-Resume] Erro ao extrair informações do currículo:", error)
+    return null
   }
 }

@@ -16,6 +16,8 @@ export interface Candidate {
   notes?: string
   lastMessageAt: string
   bot_status?: "active" | "inactive"
+  score?: number
+  score_justification?: string
 }
 
 export interface Job {

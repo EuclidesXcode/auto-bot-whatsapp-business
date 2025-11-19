@@ -1,13 +1,10 @@
 import { NextResponse } from "next/server"
 import { supabaseAdmin } from "@/lib/supabase/service"
 
-interface RouteParams {
-  params: {
-    id: string // Corresponde ao [id] na estrutura de pastas, que será o phone do candidato
-  }
-}
-
-export async function POST(request: Request, { params }: RouteParams) {
+export async function POST(
+  request: Request,
+  { params }: { params: { id: string } }
+) {
   const phone = params.id
 
   if (!phone) {

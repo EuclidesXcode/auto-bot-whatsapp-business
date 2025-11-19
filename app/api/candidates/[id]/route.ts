@@ -5,10 +5,13 @@ export async function DELETE(request: Request, { params }: { params: { id: strin
   try {
     const { id } = params
 
-    const success = deleteCandidate(id)
+    const success = await deleteCandidate(id)
 
     if (!success) {
-      return NextResponse.json({ error: "Candidato não encontrado" }, { status: 404 })
+      return NextResponse.json(
+        { error: "Falha ao deletar candidato ou candidato não encontrado" },
+        { status: 404 }
+      )
     }
 
     return NextResponse.json({ success: true })

@@ -31,13 +31,26 @@ export async function GET(request: NextRequest) {
 export async function POST(request: NextRequest) {
   try {
     const body = await request.json()
-    console.log("[v0] Webhook recebido:", JSON.stringify(body, null, 2))
+    console.log("[Webhook] Corpo do webhook recebido:", JSON.stringify(body, null, 2))
 
-    // Verificar se há mensagens
-    if (body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]) {
-      const message = body.entry[0].changes[0].value.messages[0]
+    // Processar status de mensagem
+    if (body.entry?.[0]?.changes?.[0]?.value?.statuses?.[0]) {
+      const status = body.entry[0].changes[0].value.statuses[0]
+      console.log("[Webhook] Status da mensagem recebido:", status)
+      return NextResponse.json({ success: true, message: "Status recebido" })
+    }
+
+    // Processar mensagem de usuário
+    const message = body.entry?.[0]?.changes?.[0]?.value?.messages?.[0]
+    if (message) {
       const contact = body.entry[0].changes[0].value.contacts[0]
       const phone = message.from
+      const name = contact?.profile?.name || "Candidato"
+      const messageId = message.id
+      const timestamp = new Date(Number.parseInt(message.timestamp) * 1000).toISOString()
+
+      // Garante que o candidato exista
+      await updateOrCreateCandidate(phone, name)
 
       // VERIFICAÇÃO: O bot deve responder a este candidato?
       const candidate = await getCandidate(phone)
@@ -46,53 +59,70 @@ export async function POST(request: NextRequest) {
         return NextResponse.json({ success: true, message: "Bot inativo para este usuário" })
       }
 
-      const text = message.text?.body || ""
-      const name = contact?.profile?.name || "Candidato"
-      const messageId = message.id
-      const timestamp = new Date(Number.parseInt(message.timestamp) * 1000).toISOString()
+      // Roteamento baseado no tipo de mensagem
+      if (message.type === "text") {
+        const text = message.text?.body || ""
+        console.log("[Webhook] Mensagem de texto recebida:", { phone, text })
 
-      console.log("[Webhook] Nova mensagem recebida:", { phone, text, name })
+        await addMessageToConversation(phone, { id: messageId, sender: "candidate", text, timestamp })
+        const aiResponse = await processMessageWithAI(phone, text, name)
 
-      // Passo 1: Garante que o candidato exista antes de salvar a mensagem
-      console.log("[Webhook] Passo 1: Atualizando/criando candidato...")
-      await updateOrCreateCandidate(phone, name)
-      console.log("[Webhook] Passo 1 concluído.")
+        if (aiResponse) {
+          await sendWhatsAppMessage(phone, aiResponse)
+        }
+      } else if (message.type === "document") {
+        const document = message.document
+        const allowedMimeTypes = [
+          "application/pdf",
+          "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet", // XLSX
+          "text/csv",
+        ]
 
-      // Passo 2: Salva a mensagem do candidato
-      console.log("[Webhook] Passo 2: Salvando mensagem do candidato...")
-      await addMessageToConversation(phone, {
-        id: messageId,
-        sender: "candidate",
-        text,
-        timestamp,
-      })
-      console.log("[Webhook] Passo 2 concluído.")
+        console.log(`[Webhook] Documento recebido: ${document.filename} (${document.mime_type})`)
 
-      // Processar mensagem com IA e responder
-      console.log("[Webhook] Passo 3: Processando com IA...")
-      const aiResponse = await processMessageWithAI(phone, text, name)
-      console.log("[Webhook] Passo 3 concluído.")
+        if (allowedMimeTypes.includes(document.mime_type)) {
+          // Salva no histórico que o currículo foi enviado
+          await addMessageToConversation(phone, {
+            id: messageId,
+            sender: "candidate",
+            text: `[Arquivo] Currículo enviado: ${document.filename}`,
+            timestamp,
+          })
 
-      if (aiResponse) {
-        console.log("[Webhook] Passo 4: Enviando resposta da IA...")
-        await sendWhatsAppMessage(phone, aiResponse)
-        console.log("[Webhook] Passo 4 concluído.")
+          // Confirma o recebimento para o usuário
+          await sendWhatsAppMessage(phone, "Recebi seu currículo! Vou analisá-lo e em breve te dou um retorno.")
+
+          // Dispara o processamento em segundo plano (fire-and-forget)
+          fetch(`${process.env.NEXT_PUBLIC_API_URL}/api/resumes/process`, {
+            method: "POST",
+            headers: { "Content-Type": "application/json" },
+            body: JSON.stringify({
+              mediaId: document.id,
+              mimeType: document.mime_type,
+              filename: document.filename,
+              candidatePhone: phone,
+            }),
+          }).catch((err) => {
+            console.error("[Webhook] Erro ao disparar processamento do currículo:", err)
+          })
+        } else {
+          await sendWhatsAppMessage(
+            phone,
+            "Formato de arquivo não suportado. Por favor, envie seu currículo em PDF, XLSX ou CSV."
+          )
+        }
       } else {
-        console.log("[Webhook] Nenhuma resposta gerada pela IA.")
+        console.log(`[Webhook] Tipo de mensagem não suportado: ${message.type}`)
+        await sendWhatsAppMessage(phone, "Desculpe, só consigo processar mensagens de texto ou documentos (PDF, XLSX, CSV).")
       }
 
       return NextResponse.json({ success: true })
     }
 
-    // Status de mensagem (enviada, entregue, lida)
-    if (body.entry?.[0]?.changes?.[0]?.value?.statuses?.[0]) {
-      const status = body.entry[0].changes[0].value.statuses[0]
-      console.log("[v0] Status da mensagem:", status)
-    }
-
-    return NextResponse.json({ success: true })
+    console.log("[Webhook] Evento não processado:", body)
+    return NextResponse.json({ success: true, message: "Evento não processado" })
   } catch (error) {
-    console.error("[v0] Erro ao processar webhook:", error)
+    console.error("[Webhook] Erro catastrófico:", error)
     return NextResponse.json({ error: "Erro ao processar mensagem" }, { status: 500 })
   }
 }
