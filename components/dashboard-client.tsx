@@ -70,23 +70,16 @@ export function DashboardClient({ user }: DashboardClientProps) {
   }
 
   useEffect(() => {
-    fetchData()
+    fetchData() // Busca inicial
 
-    const supabase = createClient()
-    const channel = supabase
-      .channel("realtime-messages")
-      .on(
-        "postgres_changes",
-        { event: "INSERT", schema: "public", table: "messages" },
-        () => {
-          console.log("[Realtime] Nova mensagem detectada, buscando dados...")
-          fetchData()
-        }
-      )
-      .subscribe()
+    // Configura o polling para buscar dados a cada 3 segundos
+    const intervalId = setInterval(() => {
+      fetchData()
+    }, 3000)
 
+    // Limpa o intervalo quando o componente é desmontado para evitar memory leaks
     return () => {
-      supabase.removeChannel(channel)
+      clearInterval(intervalId)
     }
   }, [])
 
