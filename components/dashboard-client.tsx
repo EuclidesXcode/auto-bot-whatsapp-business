@@ -37,6 +37,20 @@ export function DashboardClient({ user }: DashboardClientProps) {
   const [loading, setLoading] = useState(true)
   const { toast } = useToast()
 
+  const fetchConversations = async () => {
+    try {
+      const conversationsRes = await fetch("/api/conversations")
+      if (!conversationsRes.ok) {
+        throw new Error("Falha ao buscar conversas")
+      }
+      const conversationsData = await conversationsRes.json()
+      setConversations(conversationsData)
+    } catch (error) {
+      console.error("Erro ao buscar conversas:", error)
+      // Opcional: Adicionar um toast sutil para falhas de polling
+    }
+  }
+
   const fetchData = async () => {
     setLoading(true)
     try {
@@ -70,14 +84,14 @@ export function DashboardClient({ user }: DashboardClientProps) {
   }
 
   useEffect(() => {
-    fetchData() // Busca inicial
+    fetchData() // Busca inicial e completa
 
-    // Configura o polling para buscar dados a cada 3 segundos
+    // Polling otimizado apenas para conversas
     const intervalId = setInterval(() => {
-      fetchData()
+      fetchConversations()
     }, 3000)
 
-    // Limpa o intervalo quando o componente é desmontado para evitar memory leaks
+    // Limpa o intervalo quando o componente é desmontado
     return () => {
       clearInterval(intervalId)
     }
