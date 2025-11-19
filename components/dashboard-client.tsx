@@ -78,19 +78,9 @@ export function DashboardClient({ user }: DashboardClientProps) {
       .on(
         "postgres_changes",
         { event: "INSERT", schema: "public", table: "messages" },
-        (payload) => {
-          const newMessage = payload.new as Message
-          setConversations((prev) =>
-            prev.map((conv) => {
-              if (conv.candidateId === newMessage.candidate_id) {
-                if (conv.messages.some((m) => m.id === newMessage.id)) {
-                  return conv
-                }
-                return { ...conv, messages: [...conv.messages, newMessage] }
-              }
-              return conv
-            })
-          )
+        () => {
+          console.log("[Realtime] Nova mensagem detectada, buscando dados...")
+          fetchData()
         }
       )
       .subscribe()

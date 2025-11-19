@@ -1,7 +1,7 @@
 import { NextResponse } from "next/server"
 import { extractInfoFromResume } from "@/lib/ai-service"
 import { updateCandidateData, sendWhatsAppMessage } from "@/lib/whatsapp-service"
-import pdf from "pdf-parse"
+import * as pdf from "pdf-parse"
 import * as xlsx from "xlsx"
 
 // Função para buscar a URL do arquivo e fazer o download
@@ -47,7 +47,7 @@ async function downloadMedia(mediaId: string): Promise<Buffer> {
 async function extractTextFromFile(buffer: Buffer, mimeType: string): Promise<string> {
   switch (mimeType) {
     case "application/pdf":
-      const data = await pdf(buffer)
+      const data = await (pdf as any).default(buffer)
       return data.text
 
     case "application/vnd.openxmlformats-officedocument.spreadsheetml.sheet": // XLSX
