@@ -106,6 +106,20 @@ export function DashboardClient({ user }: DashboardClientProps) {
     }
   }, [])
 
+  // Efeito para sincronizar a conversa selecionada quando a lista principal é atualizada
+  useEffect(() => {
+    if (selectedConversation) {
+      const freshConversation = conversations.find(
+        (c) => c.id === selectedConversation.id
+      )
+      // Atualiza a conversa selecionada se ela existir na nova lista
+      // e se o número de mensagens for diferente, para evitar re-renderizações desnecessárias
+      if (freshConversation && freshConversation.messages.length !== selectedConversation.messages.length) {
+        setSelectedConversation(freshConversation)
+      }
+    }
+  }, [conversations]) // Dispara sempre que a lista de conversas é atualizada pelo polling
+
   const handleSelectConversation = async (conversation: Conversation) => {
     setSelectedConversation(conversation)
     const hasUnread = conversation.messages.some((m) => m.sender === "candidate" && !m.is_read)
