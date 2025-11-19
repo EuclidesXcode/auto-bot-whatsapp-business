@@ -15,12 +15,21 @@ export async function sendWhatsAppMessage(
     return false
   }
 
-  // Se o remetente for um recrutador, desativa o bot para este candidato.
+  // Se o remetente for um recrutador, garante que o candidato exista e desativa o bot.
   if (sender === "recruiter") {
-    const candidate = await getCandidate(to) // 'to' é o número de telefone
-    if (candidate && candidate.bot_status !== "inactive") {
-      console.log(`[WhatsApp Service] Mensagem do recrutador. Desativando bot para ${to}.`)
-      await updateCandidateData(to, { bot_status: "inactive" })
+    console.log(`[WhatsApp Service] Mensagem do recrutador. Desativando bot para ${to}.`)
+    const { error: upsertError } = await supabaseAdmin.from("candidates").upsert(
+      {
+        id: to,
+        phone: to,
+        bot_status: "inactive",
+        last_message_at: new Date().toISOString(),
+      },
+      { onConflict: "phone", ignoreDuplicates: false }
+    )
+    if (upsertError) {
+      console.error("[WhatsApp Service] Erro ao fazer upsert para desativar o bot:", upsertError)
+      // Continua mesmo com erro para não impedir o envio da mensagem
     }
   }
 
