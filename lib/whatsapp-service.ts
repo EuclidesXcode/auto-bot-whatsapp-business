@@ -15,6 +15,15 @@ export async function sendWhatsAppMessage(
     return false
   }
 
+  // Se o remetente for um recrutador, desativa o bot para este candidato.
+  if (sender === "recruiter") {
+    const candidate = await getCandidate(to) // 'to' é o número de telefone
+    if (candidate && candidate.bot_status !== "inactive") {
+      console.log(`[WhatsApp Service] Mensagem do recrutador. Desativando bot para ${to}.`)
+      await updateCandidateData(to, { bot_status: "inactive" })
+    }
+  }
+
   const cleanedTo = to.replace(/\D/g, "");
   
   // Normaliza o número de celular brasileiro adicionando o 9º dígito se necessário
